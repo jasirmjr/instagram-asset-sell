@@ -84,7 +84,7 @@ export default function App() {
         order_id: order.orderId,
         name: product.brand,
         description: product.name,
-        theme: { color: "#8b5cf6" },
+        theme: { color: "#8b6a45" },
         handler: async (resp) => {
           try {
             const d = await post("/api/verify-payment", resp);
@@ -123,117 +123,119 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-neutral-950 text-neutral-100">
-      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,rgba(139,92,246,0.25),transparent_60%)]" />
-
-      <main className="relative mx-auto max-w-md px-5 py-10">
-        <header className="mb-8 flex items-center justify-between">
-          <span className="text-sm font-semibold tracking-wide text-neutral-300">{product.brand}</span>
+    <div className="min-h-dvh bg-cream text-ink antialiased">
+      <main className="mx-auto w-full max-w-5xl px-4 py-6 sm:px-6 sm:py-10 lg:py-16">
+        <header className="mb-6 flex items-center justify-between sm:mb-10">
+          <span className="text-sm font-semibold tracking-wide sm:text-base">{product.brand}</span>
           {product.instagram && (
-            <a href={product.instagram} target="_blank" rel="noreferrer" className="text-xs text-violet-300 hover:text-violet-200">
-              Instagram ↗
+            <a
+              href={product.instagram}
+              target="_blank"
+              rel="noreferrer"
+              className="rounded-full border border-tan/50 px-3 py-1 text-xs font-medium text-tan-dark transition hover:bg-sand"
+            >
+              Instagram
             </a>
           )}
         </header>
 
         {status === "checking" && (
           <div className="flex h-64 items-center justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-2 border-violet-400 border-t-transparent" />
+            <div className="h-8 w-8 animate-spin rounded-full border-2 border-tan border-t-transparent" />
           </div>
         )}
 
         {status === "unlocked" && (
-          <section className="rounded-3xl border border-emerald-500/30 bg-neutral-900/80 p-6 text-center shadow-2xl">
-            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-emerald-500/15 text-3xl">✓</div>
-            <h1 className="text-2xl font-bold">You're in!</h1>
-            <p className="mt-2 text-sm text-neutral-400">
-              Thanks for buying <span className="text-neutral-200">{product.name}</span>. Come back to this link anytime to download again.
-            </p>
+          <section className="mx-auto max-w-md rounded-3xl border border-sand bg-white p-6 text-center shadow-[0_10px_40px_-15px_rgba(58,46,36,0.25)] sm:p-8">
+            <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-sand text-2xl text-tan-dark">✓</div>
+            <h1 className="text-2xl font-bold sm:text-3xl">You're in!</h1>
+            <p className="mt-2 text-sm text-muted">{product.name}</p>
             <a
               href={`/api/download?token=${encodeURIComponent(token)}`}
-              className="mt-6 block w-full rounded-2xl bg-emerald-500 py-4 text-lg font-semibold text-neutral-950 transition hover:bg-emerald-400"
+              className="mt-6 block w-full rounded-2xl bg-tan-dark py-4 text-base font-semibold text-white transition hover:bg-ink sm:text-lg"
             >
-              Download assets
+              Download
             </a>
             {paymentId && (
-              <p className="mt-5 rounded-xl bg-neutral-800/70 px-3 py-2 text-xs text-neutral-400">
-                Save your Payment ID to unlock on another phone:
-                <br />
-                <span className="select-all font-mono text-neutral-200">{paymentId}</span>
+              <p className="mt-5 rounded-xl bg-cream px-3 py-2 text-xs text-muted">
+                Payment ID
+                <span className="mt-1 block select-all break-all font-mono text-ink">{paymentId}</span>
               </p>
             )}
           </section>
         )}
 
         {status === "locked" && (
-          <section className="overflow-hidden rounded-3xl border border-neutral-800 bg-neutral-900/80 shadow-2xl">
+          <section className="overflow-hidden rounded-3xl border border-sand bg-white shadow-[0_10px_40px_-15px_rgba(58,46,36,0.25)] md:grid md:grid-cols-2">
             {product.preview ? (
-              <img src={product.preview} alt={product.name} className="aspect-video w-full object-cover" />
+              <img
+                src={product.preview}
+                alt={product.name}
+                className="aspect-video w-full object-cover md:aspect-auto md:h-full"
+              />
             ) : (
-              <div className="flex aspect-video w-full items-center justify-center bg-gradient-to-br from-violet-600 via-fuchsia-600 to-orange-500">
-                <span className="text-4xl font-black tracking-tight text-white/90">EDIT PACK</span>
+              <div className="flex aspect-video w-full items-center justify-center bg-gradient-to-br from-sand via-tan to-tan-dark md:aspect-auto md:h-full md:min-h-[420px]">
+                <span className="text-3xl font-black tracking-tight text-white sm:text-4xl">EDIT PACK</span>
               </div>
             )}
 
-            <div className="p-6">
-              <h1 className="text-2xl font-bold leading-tight">{product.name}</h1>
-              <p className="mt-2 text-sm text-neutral-400">{product.tagline}</p>
+            <div className="flex flex-col p-5 sm:p-8">
+              <h1 className="text-2xl font-bold leading-tight sm:text-3xl">{product.name}</h1>
+              {product.tagline && <p className="mt-2 text-sm text-muted sm:text-base">{product.tagline}</p>}
 
-              <ul className="mt-5 space-y-2">
+              <ul className="mt-5 grid gap-2 sm:grid-cols-2 md:grid-cols-1">
                 {product.features.map((f) => (
-                  <li key={f} className="flex items-start gap-2 text-sm text-neutral-300">
-                    <span className="mt-0.5 text-violet-400">●</span>
+                  <li key={f} className="flex items-start gap-2 text-sm">
+                    <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-tan" />
                     {f}
                   </li>
                 ))}
               </ul>
 
-              <div className="mt-6 flex items-baseline gap-3">
+              <div className="mt-auto pt-6">
                 <span className="text-3xl font-bold">₹{product.priceInr}</span>
-                {product.originalPriceInr && (
-                  <span className="text-lg text-neutral-500 line-through">₹{product.originalPriceInr}</span>
-                )}
-              </div>
 
-              <button
-                onClick={handleBuy}
-                disabled={busy}
-                className="mt-4 w-full rounded-2xl bg-violet-500 py-4 text-lg font-semibold text-white transition hover:bg-violet-400 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {busy ? "Please wait…" : "Buy now"}
-              </button>
-              <p className="mt-2 text-center text-xs text-neutral-500">Secure payment via Razorpay · UPI, cards, netbanking</p>
+                <button
+                  onClick={handleBuy}
+                  disabled={busy}
+                  className="mt-4 w-full rounded-2xl bg-tan-dark py-4 text-base font-semibold text-white transition hover:bg-ink disabled:cursor-not-allowed disabled:opacity-60 sm:text-lg"
+                >
+                  {busy ? "Please wait…" : "Buy now"}
+                </button>
 
-              <div className="mt-6 border-t border-neutral-800 pt-4">
-                {!showRestore ? (
-                  <button onClick={() => setShowRestore(true)} className="w-full text-center text-sm text-neutral-400 underline-offset-4 hover:underline">
-                    Already paid? Restore access
-                  </button>
-                ) : (
-                  <form onSubmit={handleRestore} className="space-y-2">
-                    <label className="block text-xs text-neutral-400">
-                      Enter the 12-digit UPI transaction ID from your UPI app (GPay / PhonePe / Paytm), or your Payment ID starting with <span className="font-mono">pay_</span> from the Razorpay receipt email
-                    </label>
-                    <div className="flex gap-2">
+                <div className="mt-5 border-t border-sand pt-4">
+                  {!showRestore ? (
+                    <button
+                      onClick={() => setShowRestore(true)}
+                      className="w-full text-center text-sm text-muted underline-offset-4 hover:text-ink hover:underline"
+                    >
+                      Already paid? Restore access
+                    </button>
+                  ) : (
+                    <form onSubmit={handleRestore} className="flex flex-col gap-2 sm:flex-row">
                       <input
                         value={restoreId}
                         onChange={(e) => setRestoreId(e.target.value)}
                         placeholder="UPI transaction ID or pay_…"
-                        className="min-w-0 flex-1 rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 font-mono text-sm outline-none focus:border-violet-400"
+                        aria-label="UPI transaction ID or Payment ID"
+                        className="min-w-0 flex-1 rounded-xl border border-sand bg-cream px-3 py-3 font-mono text-base outline-none focus:border-tan sm:py-2 sm:text-sm"
                       />
-                      <button disabled={busy || !restoreId.trim()} className="rounded-xl bg-neutral-100 px-4 text-sm font-semibold text-neutral-950 disabled:opacity-50">
+                      <button
+                        disabled={busy || !restoreId.trim()}
+                        className="rounded-xl bg-ink px-5 py-3 text-sm font-semibold text-white disabled:opacity-50 sm:py-2"
+                      >
                         Unlock
                       </button>
-                    </div>
-                  </form>
-                )}
+                    </form>
+                  )}
+                </div>
               </div>
             </div>
           </section>
         )}
 
         {error && (
-          <p className="mt-4 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">{error}</p>
+          <p className="mx-auto mt-4 max-w-md rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
         )}
       </main>
     </div>
