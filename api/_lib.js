@@ -8,7 +8,7 @@ export const razorpay = new Razorpay({
 });
 
 export const PRODUCT_ID = process.env.PRODUCT_ID || "editing-pack-v1";
-export const PRICE_PAISE = Math.round(Number(process.env.PRICE_INR || 199) * 100);
+export const PRICE_PAISE = Math.round(Number(process.env.PRICE_INR || 49) * 100);
 
 function hmac(data, secret) {
   return crypto.createHmac("sha256", secret).update(data).digest("hex");
