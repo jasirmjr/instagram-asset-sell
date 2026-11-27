@@ -3,8 +3,9 @@ import { razorpay, PRICE_PAISE, PRODUCT_ID, allowRequest, tooMany } from "./_lib
 // Price is decided HERE on the server, so nobody can change it from the browser.
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
-  // A real buyer needs 1–2 orders; this stops one visitor creating hundreds.
-  if (!allowRequest(req, "create-order", 15, 10 * 60 * 1000)) return tooMany(res);
+  // A real buyer needs 1–2 orders. 50 leaves room for many buyers sharing one
+  // mobile-network IP (Jio/Airtel), while still stopping someone creating thousands.
+  if (!allowRequest(req, "create-order", 50, 10 * 60 * 1000)) return tooMany(res);
   try {
     const order = await razorpay().orders.create({
       amount: PRICE_PAISE,
