@@ -6,7 +6,7 @@ export const product = {
   name: "Ultimate Editing Assets Pack",
   tagline: "Transitions, LUTs, SFX and overlays I use in my reels.",
   priceInr: 49,
-  originalPriceInr: 499, // set to null to hide the strike-through price
+  originalPriceInr: null, // set to null to hide the strike-through price
   preview: "", // e.g. "/preview.jpg" (put the image in the public/ folder). Empty = gradient placeholder
   features: [
     "50+ smooth transitions",
