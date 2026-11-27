@@ -207,7 +207,7 @@ export default function App() {
                         onChange={(e) => setRestoreId(e.target.value)}
                         placeholder="UPI transaction ID or pay_…"
                         aria-label="UPI transaction ID or Payment ID"
-                        className="min-w-0 flex-1 rounded-xl border border-line bg-soft px-3 py-3 font-mono text-base outline-none focus:border-ink sm:py-2 sm:text-sm"
+                        className="min-w-0 flex-1 rounded-xl border border-line bg-soft px-3 py-3 font-mono text-base outline-none focus:border-ink sm:py-2"
                       />
                       <button
                         disabled={busy || !restoreId.trim()}
