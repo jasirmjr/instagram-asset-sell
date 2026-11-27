@@ -90,7 +90,7 @@ export default function App() {
             const d = await post("/api/verify-payment", resp);
             unlock(d.token, d.paymentId);
           } catch (e) {
-            setError(`${e.message}. If money was deducted, use "Restore access" with your Payment ID.`);
+            setError(`${e.message}. If money was deducted, use "Restore access" with your UPI transaction ID.`);
           } finally {
             setBusy(false);
           }
@@ -212,13 +212,13 @@ export default function App() {
                 ) : (
                   <form onSubmit={handleRestore} className="space-y-2">
                     <label className="block text-xs text-neutral-400">
-                      Enter your Payment ID (starts with <span className="font-mono">pay_</span>, it's in your Razorpay receipt email)
+                      Enter the 12-digit UPI transaction ID from your UPI app (GPay / PhonePe / Paytm), or your Payment ID starting with <span className="font-mono">pay_</span> from the Razorpay receipt email
                     </label>
                     <div className="flex gap-2">
                       <input
                         value={restoreId}
                         onChange={(e) => setRestoreId(e.target.value)}
-                        placeholder="pay_XXXXXXXXXXXX"
+                        placeholder="UPI transaction ID or pay_…"
                         className="min-w-0 flex-1 rounded-xl border border-neutral-700 bg-neutral-950 px-3 py-2 font-mono text-sm outline-none focus:border-violet-400"
                       />
                       <button disabled={busy || !restoreId.trim()} className="rounded-xl bg-neutral-100 px-4 text-sm font-semibold text-neutral-950 disabled:opacity-50">
