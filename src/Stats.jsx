@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 // /stats?code=rahul&key=SECRET → that influencer's own numbers
 // /stats?admin=ADMIN_KEY        → every influencer, plus recording payouts (for you)
@@ -202,7 +202,7 @@ function AddInfluencer({ adminKey, onUpdate, onClose }) {
   }
 
   return (
-    <form onSubmit={submit} className="mt-4 rounded-2xl border border-line bg-soft p-4">
+    <form onSubmit={submit} className="mt-5 rounded-3xl border border-line bg-white p-4 sm:p-5">
       <div className="grid gap-3 sm:grid-cols-[1fr_1fr_8rem_auto] sm:items-end">
         <label className="text-xs font-semibold text-muted">
           Name
@@ -331,9 +331,10 @@ function ManagePanel({ s, adminKey, onUpdate }) {
   }
 
   const heading = "text-xs font-semibold uppercase tracking-wide text-muted";
+  const card = "rounded-2xl border border-line bg-white p-4";
   return (
-    <div className="grid gap-6 p-4 sm:p-5 lg:grid-cols-3">
-      <div>
+    <div className="grid gap-3 p-3 sm:p-4 lg:grid-cols-3">
+      <div className={card}>
         <p className={heading}>Links</p>
         <div className="mt-2 flex flex-wrap gap-2">
           <CopyButton text={refLink(s.code)} label="Copy buyer link" />
@@ -345,7 +346,7 @@ function ManagePanel({ s, adminKey, onUpdate }) {
         </button>
       </div>
 
-      <div>
+      <div className={card}>
         <p className={heading}>Details</p>
         <form
           onSubmit={(e) => { e.preventDefault(); run({ action: "update", code: s.code, name, percent }); }}
@@ -375,7 +376,7 @@ function ManagePanel({ s, adminKey, onUpdate }) {
         </div>
       </div>
 
-      <div>
+      <div className={card}>
         <p className={heading}>Pay {s.name}</p>
         <p className="mt-2 text-sm">
           Due now <span className="font-bold tabular-nums">{inr(s.owed)}</span>
@@ -401,6 +402,34 @@ function ManagePanel({ s, adminKey, onUpdate }) {
 
 const pct = (sales, visits) => (visits ? Math.round((sales / visits) * 1000) / 10 : 0);
 
+// A soft colour per influencer, so rows are easy to tell apart at a glance.
+const AVATAR = [
+  "bg-rose-100 text-rose-700", "bg-amber-100 text-amber-800", "bg-emerald-100 text-emerald-700",
+  "bg-sky-100 text-sky-700", "bg-violet-100 text-violet-700", "bg-orange-100 text-orange-700",
+];
+function Avatar({ s }) {
+  const i = [...s.code].reduce((a, c) => a + c.charCodeAt(0), 0) % AVATAR.length;
+  const initials = s.name.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase();
+  return (
+    <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-full text-sm font-bold ${s.active ? AVATAR[i] : "bg-soft text-muted"}`}>
+      {initials || "?"}
+    </span>
+  );
+}
+
+function Stat({ label, value, hint }) {
+  return (
+    <div className="rounded-3xl border border-line bg-white p-4 sm:p-5">
+      <p className="text-xs font-medium text-muted">{label}</p>
+      <p className="mt-2 text-xl font-bold tabular-nums tracking-tight sm:text-2xl">{value}</p>
+      {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
+    </div>
+  );
+}
+
+// Columns: influencer | visits | sales | earned | to pay | arrow. On phones: influencer | to pay.
+const cols = "grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-4 sm:grid-cols-[minmax(0,2.4fr)_repeat(4,minmax(0,1fr))_1.25rem]";
+
 function AdminView({ data, adminKey, onUpdate }) {
   const list = data.influencers;
   const [open, setOpen] = useState(null);
@@ -408,102 +437,110 @@ function AdminView({ data, adminKey, onUpdate }) {
   const sum = (f) => list.reduce((a, x) => a + x[f], 0);
   const totalVisits = sum("visits");
   const totalSales = sum("sales");
-
-  const th = "whitespace-nowrap px-3 py-3 text-xs font-semibold text-muted";
-  const td = "whitespace-nowrap px-3 py-3 tabular-nums";
-  const right = "text-right";
+  const owed = sum("owed");
+  const waiting = list.filter((x) => x.owed > 0).length;
+  const holdDays = list[0]?.holdDays ?? 7;
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-2xl font-bold sm:text-3xl">Influencers</h1>
-        {!adding && <button onClick={() => setAdding(true)} className={darkBtn}>+ Add influencer</button>}
+      <div className="flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-muted">Admin</p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight">Influencers</h1>
+        </div>
+        {!adding && <button onClick={() => setAdding(true)} className="rounded-full bg-ink px-5 py-2.5 text-sm font-semibold text-white shadow-sm hover:bg-black">+ Add influencer</button>}
       </div>
 
       {adding && <AddInfluencer adminKey={adminKey} onUpdate={onUpdate} onClose={() => setAdding(false)} />}
 
-      <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Tile label="Visits" value={num(totalVisits)} />
-        <Tile label="Sales" value={num(totalSales)} hint={`${pct(totalSales, totalVisits)}% of visits`} />
-        <Tile label="Commission earned" value={inr(sum("earnedTotal"))} hint={`paid ${inr(sum("paid"))}`} />
-        <Tile label="You owe now" value={inr(sum("owed"))} hint={`sales older than ${list[0]?.holdDays ?? 7} days`} />
+      <div className="mt-6 grid grid-cols-3 gap-3 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+        <div className="col-span-3 rounded-3xl bg-ink p-5 text-white lg:col-span-1">
+          <p className="text-xs font-medium text-white/60">To pay now</p>
+          <p className="mt-2 text-3xl font-bold tabular-nums tracking-tight">{inr(owed)}</p>
+          <p className="mt-1 text-xs text-white/60">
+            {waiting ? `${waiting} influencer${waiting === 1 ? "" : "s"} waiting` : "All settled"} · sales older than {holdDays} days
+          </p>
+        </div>
+        <Stat label="Visits" value={num(totalVisits)} />
+        <Stat label="Sales" value={num(totalSales)} hint={`${pct(totalSales, totalVisits)}% of visits`} />
+        <Stat label="Commission" value={inr(sum("earnedTotal"))} hint={`${inr(sum("paid"))} paid`} />
       </div>
 
       {list.length === 0 ? (
-        <div className="mt-6 rounded-2xl border border-dashed border-line p-8 text-center text-sm text-muted">
-          No influencers yet. Click <span className="font-semibold text-ink">+ Add influencer</span> to add your first one.
+        <div className="mt-6 rounded-3xl border border-dashed border-line bg-white p-10 text-center">
+          <p className="font-semibold">No influencers yet</p>
+          <p className="mt-1 text-sm text-muted">Add your first one to get their link and code.</p>
+          {!adding && <button onClick={() => setAdding(true)} className={`mt-4 ${darkBtn}`}>+ Add influencer</button>}
         </div>
       ) : (
         <>
-          <div className="mt-6 overflow-x-auto rounded-2xl border border-line">
-            <table className="w-full min-w-[820px] text-sm">
-              <thead className="border-b border-line bg-soft text-left">
-                <tr>
-                  <th className={th}>Influencer</th>
-                  <th className={th}>Code</th>
-                  <th className={`${th} ${right}`}>Share</th>
-                  <th className={`${th} ${right}`}>Visits</th>
-                  <th className={`${th} ${right}`}>Sales</th>
-                  <th className={`${th} ${right}`}>Conversion</th>
-                  <th className={`${th} ${right}`}>Earned</th>
-                  <th className={`${th} ${right}`}>Paid</th>
-                  <th className={`${th} ${right}`}>Owed now</th>
-                  <th className={th}>Status</th>
-                  <th className={th}><span className="sr-only">Manage</span></th>
-                </tr>
-              </thead>
-              <tbody>
-                {list.map((s, i) => {
-                  const isOpen = open === s.code;
-                  return (
-                    <Fragment key={s.code}>
-                      <tr
-                        onClick={() => setOpen(isOpen ? null : s.code)}
-                        className={`cursor-pointer hover:bg-soft ${i > 0 ? "border-t border-line" : ""} ${isOpen ? "bg-soft" : ""} ${s.active ? "" : "text-muted"}`}
-                      >
-                        <td className="px-3 py-3 font-semibold">{s.name}</td>
-                        <td className="whitespace-nowrap px-3 py-3 font-mono text-xs uppercase">{s.code}</td>
-                        <td className={`${td} ${right}`}>{s.percent}%</td>
-                        <td className={`${td} ${right}`}>{num(s.visits)}</td>
-                        <td className={`${td} ${right}`}>
-                          {num(s.sales)}
-                          {s.refunded > 0 && <span className="block text-xs text-red-600">{s.refunded} refunded</span>}
-                        </td>
-                        <td className={`${td} ${right}`}>{s.conversion}%</td>
-                        <td className={`${td} ${right}`}>{inr(s.earnedTotal)}</td>
-                        <td className={`${td} ${right}`}>{inr(s.paid)}</td>
-                        <td className={`${td} ${right} ${s.owed > 0 ? "font-bold text-ink" : "text-muted"}`}>{inr(s.owed)}</td>
-                        <td className="px-3 py-3"><StatusPill active={s.active} /></td>
-                        <td className="whitespace-nowrap px-3 py-3 text-right text-xs font-semibold text-ink">
-                          {isOpen ? "Close ▴" : "Manage ▾"}
-                        </td>
-                      </tr>
-                      {isOpen && (
-                        <tr className="border-t border-line">
-                          <td colSpan={11} className="bg-white p-0">
-                            <ManagePanel key={`${s.code}-${s.name}-${s.percent}`} s={s} adminKey={adminKey} onUpdate={onUpdate} />
-                          </td>
-                        </tr>
+          <div className="mt-6 overflow-hidden rounded-3xl border border-line bg-white">
+            <div className={`${cols} hidden border-b border-line px-5 py-3 text-xs font-medium text-muted sm:grid`}>
+              <span>Influencer</span>
+              <span className="text-right">Visits</span>
+              <span className="text-right">Sales</span>
+              <span className="text-right">Earned</span>
+              <span className="text-right">To pay</span>
+              <span />
+            </div>
+            {list.map((s, i) => {
+              const isOpen = open === s.code;
+              return (
+                <div key={s.code} className={i > 0 ? "border-t border-line" : ""}>
+                  <button
+                    onClick={() => setOpen(isOpen ? null : s.code)}
+                    aria-expanded={isOpen}
+                    className={`${cols} w-full gap-y-2 px-4 py-4 text-left transition-colors hover:bg-soft/60 sm:px-5 ${isOpen ? "bg-soft/60" : ""}`}
+                  >
+                    <span className="flex min-w-0 items-center gap-3">
+                      <Avatar s={s} />
+                      <span className="min-w-0">
+                        <span className={`flex items-center gap-2 font-semibold ${s.active ? "" : "text-muted"}`}>
+                          <span className="truncate">{s.name}</span>
+                          {!s.active && <span className="rounded-full bg-soft px-2 py-0.5 text-[11px] font-semibold text-muted">Paused</span>}
+                        </span>
+                        <span className="block text-xs text-muted">
+                          <span className="font-mono uppercase">{s.code}</span> · {s.percent}% per sale
+                        </span>
+                      </span>
+                    </span>
+
+                    <span className="hidden text-right tabular-nums sm:block">{num(s.visits)}</span>
+                    <span className="hidden text-right tabular-nums sm:block">
+                      {num(s.sales)}
+                      <span className="block text-xs text-muted">
+                        {s.conversion}%{s.refunded > 0 && <span className="text-red-600"> · {s.refunded} refunded</span>}
+                      </span>
+                    </span>
+                    <span className="hidden text-right tabular-nums sm:block">
+                      {inr(s.earnedTotal)}
+                      <span className="block text-xs text-muted">{inr(s.paid)} paid</span>
+                    </span>
+                    <span className="text-right tabular-nums">
+                      {s.owed > 0 ? (
+                        <span className="inline-block rounded-full bg-emerald-50 px-2.5 py-1 text-sm font-bold text-emerald-700">{inr(s.owed)}</span>
+                      ) : (
+                        <span className="text-muted">₹0</span>
                       )}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-              <tfoot className="border-t-2 border-line bg-soft font-semibold">
-                <tr>
-                  <td className="px-3 py-3" colSpan={3}>Total · {list.length} influencer{list.length === 1 ? "" : "s"}</td>
-                  <td className={`${td} ${right}`}>{num(totalVisits)}</td>
-                  <td className={`${td} ${right}`}>{num(totalSales)}</td>
-                  <td className={`${td} ${right}`}>{pct(totalSales, totalVisits)}%</td>
-                  <td className={`${td} ${right}`}>{inr(sum("earnedTotal"))}</td>
-                  <td className={`${td} ${right}`}>{inr(sum("paid"))}</td>
-                  <td className={`${td} ${right}`}>{inr(sum("owed"))}</td>
-                  <td colSpan={2} />
-                </tr>
-              </tfoot>
-            </table>
+                    </span>
+                    <span className={`hidden justify-self-end text-muted transition-transform sm:block ${isOpen ? "rotate-180" : ""}`} aria-hidden>▾</span>
+
+                    <span className="col-span-2 flex flex-wrap gap-x-3 pl-[3.25rem] text-xs text-muted sm:hidden">
+                      <span>{num(s.visits)} visit{s.visits === 1 ? "" : "s"}</span>
+                      <span>{num(s.sales)} sale{s.sales === 1 ? "" : "s"}</span>
+                      <span>{inr(s.earnedTotal)} earned</span>
+                    </span>
+                  </button>
+                  {isOpen && (
+                    <div className="border-t border-line bg-soft/60">
+                      <ManagePanel key={`${s.code}-${s.name}-${s.percent}`} s={s} adminKey={adminKey} onUpdate={onUpdate} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
-          <p className="mt-2 text-xs text-muted">Click a row to copy links, edit, pause, delete or record a payout.</p>
+          <p className="mt-3 text-center text-xs text-muted">Tap an influencer to copy links, edit, pay or delete.</p>
         </>
       )}
     </>
@@ -523,7 +560,7 @@ export default function Stats() {
   }, []);
 
   return (
-    <div className="min-h-dvh bg-white text-ink antialiased">
+    <div className={`min-h-dvh text-ink antialiased ${adminKey !== null ? "bg-[#fafafa]" : "bg-white"}`}>
       <main className={`mx-auto w-full px-4 py-6 sm:px-6 sm:py-10 ${adminKey !== null ? "max-w-6xl" : "max-w-3xl"}`}>
         {error ? (
           <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
