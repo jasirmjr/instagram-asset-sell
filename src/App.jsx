@@ -35,10 +35,11 @@ function clearToken() {
   try { localStorage.removeItem(TOKEN_KEY); } catch {}
 }
 
-// ---- Creator (influencer) code ----
-// Kept for 30 days so someone who watches today and buys tomorrow still counts.
-// The last link or code used wins.
-const REF_KEY = "asset_ref";
+// ---- Promo (influencer) code ----
+// An influencer's link only counts the visit. The ₹49 price needs the buyer to type a valid code;
+// once applied it's kept for 30 days, so someone who applies today and buys tomorrow keeps it.
+// (A new key: codes the old version saved automatically from a link are not applied.)
+const REF_KEY = "asset_promo";
 const REF_SEEN_KEY = "asset_ref_seen";
 const REF_DAYS = 30;
 
@@ -60,14 +61,13 @@ function seenRefs() {
 }
 
 // Checks the code with the server and counts one visit per browser per code.
-async function applyRef(raw) {
+async function checkCode(raw) {
   const ref = String(raw || "").trim().toLowerCase();
   const seen = seenRefs();
   const d = await post("/api/visit", { ref, first: !seen.includes(ref) });
   if (!seen.includes(d.code)) {
     try { localStorage.setItem(REF_SEEN_KEY, JSON.stringify([...seen, d.code].slice(-20))); } catch {}
   }
-  saveRef(d.code);
   return d.code;
 }
 
@@ -94,37 +94,41 @@ export default function App() {
   const [showCode, setShowCode] = useState(false);
   const [codeInput, setCodeInput] = useState("");
   const [codeError, setCodeError] = useState("");
+  const [codeBusy, setCodeBusy] = useState(false);
 
-  // Arrived from an influencer's link (?ref=rahul): check it, remember it, tidy the URL.
+  // Arrived from an influencer's link (?ref=rahul): count the visit for them and tidy the URL.
+  // The price stays ₹99 until the buyer types the code.
   useEffect(() => {
     const url = new URL(window.location.href);
     const ref = url.searchParams.get("ref");
     if (!ref) return;
     url.searchParams.delete("ref");
     window.history.replaceState(null, "", url.pathname + url.search + url.hash);
-    applyRef(ref)
-      .then(setRefCode)
-      .catch((e) => {
-        // "Not found" → ignore the code. Busy or offline → keep it anyway: "Buy now" checks it again
-        // on the server, so a short outage never costs the buyer their discount or the influencer the sale.
-        const code = ref.trim().toLowerCase();
-        if (e.status !== 404 && /^[a-z0-9_-]{2,30}$/.test(code)) {
-          saveRef(code);
-          setRefCode(code);
-        }
-      });
+    checkCode(ref).catch(() => {});
   }, []);
 
   async function handleCode(e) {
     e.preventDefault();
     setCodeError("");
+    setCodeBusy(true);
     try {
-      setRefCode(await applyRef(codeInput));
+      const code = await checkCode(codeInput);
+      saveRef(code);
+      setRefCode(code);
       setShowCode(false);
       setCodeInput("");
     } catch (err) {
-      setCodeError(err.message);
+      setCodeError(err.status === 404 ? "That promo code isn't valid. Check the spelling and try again." : err.message);
+    } finally {
+      setCodeBusy(false);
     }
+  }
+
+  function removeCode() {
+    clearRef();
+    setRefCode(null);
+    setShowCode(false);
+    setCodeError("");
   }
 
   // On every visit: if this browser already paid, unlock straight away
@@ -190,7 +194,7 @@ export default function App() {
         // The saved code was paused or removed. Show the real price before taking any money.
         clearRef();
         setRefCode(null);
-        setError(`Creator code ${String(refCode || "").toUpperCase()} is no longer active, so the price is ₹${prices.full}. Tap "Buy now" to continue, or enter another code.`);
+        setError(`Promo code ${String(refCode || "").toUpperCase()} is no longer active, so the price is ₹${prices.full}. Tap "Buy now" to continue, or enter another code.`);
       } else {
         setError(e.message);
       }
@@ -290,33 +294,43 @@ export default function App() {
                 <div className="mt-3 text-sm text-muted">
                   {refCode && !showCode ? (
                     <p>
-                      Creator code <span className="font-semibold uppercase text-ink">{refCode}</span> applied
+                      Promo code <span className="font-semibold uppercase text-ink">{refCode}</span> applied
                       {hasDiscount && <> · <span className="font-semibold text-ink">₹{prices.full - prices.code} off</span></>} ·{" "}
                       <button onClick={() => setShowCode(true)} className="underline-offset-4 hover:text-ink hover:underline">
                         change
+                      </button>{" "}·{" "}
+                      <button onClick={removeCode} className="underline-offset-4 hover:text-ink hover:underline">
+                        remove
                       </button>
                     </p>
-                  ) : !showCode ? (
-                    <button onClick={() => setShowCode(true)} className="underline-offset-4 hover:text-ink hover:underline">
-                      Have a creator code?{hasDiscount && ` Get ₹${prices.full - prices.code} off`}
-                    </button>
                   ) : (
-                    <form onSubmit={handleCode} className="flex gap-2">
-                      <input
-                        value={codeInput}
-                        onChange={(e) => setCodeInput(e.target.value)}
-                        placeholder="Creator code"
-                        aria-label="Creator code"
-                        autoCapitalize="characters"
-                        className="min-w-0 flex-1 rounded-xl border border-line bg-soft px-3 py-2 text-base uppercase text-ink outline-none focus:border-ink"
-                      />
-                      <button
-                        disabled={!codeInput.trim()}
-                        className="rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
-                      >
-                        Apply
-                      </button>
-                    </form>
+                    <>
+                      {hasDiscount && !refCode && (
+                        <p className="mb-2">Have a promo code? Enter it to pay ₹{prices.code}.</p>
+                      )}
+                      <form onSubmit={handleCode} className="flex gap-2">
+                        <input
+                          value={codeInput}
+                          onChange={(e) => { setCodeInput(e.target.value); setCodeError(""); }}
+                          placeholder="Promo code"
+                          aria-label="Promo code"
+                          autoCapitalize="characters"
+                          autoComplete="off"
+                          className="min-w-0 flex-1 rounded-xl border border-line bg-soft px-3 py-2 text-base uppercase text-ink outline-none focus:border-ink"
+                        />
+                        <button
+                          disabled={!codeInput.trim() || codeBusy}
+                          className="rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                        >
+                          {codeBusy ? "Checking…" : "Apply"}
+                        </button>
+                      </form>
+                      {refCode && (
+                        <button type="button" onClick={() => { setShowCode(false); setCodeError(""); }} className="mt-2 underline-offset-4 hover:text-ink hover:underline">
+                          Keep {refCode.toUpperCase()}
+                        </button>
+                      )}
+                    </>
                   )}
                   {codeError && <p className="mt-2 text-xs text-red-600">{codeError}</p>}
                 </div>
