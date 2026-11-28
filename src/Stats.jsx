@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 
 // /stats?code=rahul&key=SECRET → that influencer's own numbers
 // /stats?admin=ADMIN_KEY        → every influencer, plus recording payouts (for you)
@@ -14,7 +14,10 @@ async function post(body) {
   return data;
 }
 
-const inr = (paise) => `₹${(paise / 100).toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+const inr = (paise) => {
+  const digits = paise % 100 === 0 ? 0 : 2; // ₹200, but ₹558.60 (not ₹558.6)
+  return `₹${(paise / 100).toLocaleString("en-IN", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+};
 const num = (n) => n.toLocaleString("en-IN");
 const date = (ms) => new Date(ms).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
 const refLink = (code) => `${window.location.origin}/?ref=${code}`;
@@ -140,25 +143,25 @@ function PayoutForm({ inf, adminKey, onDone }) {
   }
 
   return (
-    <form onSubmit={submit} className="mt-3 flex flex-wrap gap-2">
+    <form onSubmit={submit} className="mt-2 grid grid-cols-[7rem_1fr] gap-2">
       <input
         value={amount}
         onChange={(e) => setAmount(e.target.value.replace(/[^\d.]/g, ""))}
-        placeholder={`₹ amount (due ${inr(inf.owed)})`}
+        placeholder="₹ amount"
         inputMode="decimal"
-        className="w-44 rounded-xl border border-line bg-soft px-3 py-2 text-sm outline-none focus:border-ink"
+        className="w-full rounded-xl border border-line bg-white px-3 py-2 text-sm outline-none focus:border-ink"
       />
       <input
         value={note}
         onChange={(e) => setNote(e.target.value)}
         placeholder="Note (e.g. UPI ref)"
         maxLength={100}
-        className="min-w-0 flex-1 rounded-xl border border-line bg-soft px-3 py-2 text-sm outline-none focus:border-ink"
+        className="min-w-0 rounded-xl border border-line bg-white px-3 py-2 text-sm outline-none focus:border-ink"
       />
-      <button disabled={busy || !(Number(amount) > 0)} className="rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+      <button disabled={busy || !(Number(amount) > 0)} className="col-span-2 rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
         Record payout
       </button>
-      {error && <p className="w-full text-xs text-red-600">{error}</p>}
+      {error && <p className="col-span-2 text-xs text-red-600">{error}</p>}
     </form>
   );
 }
@@ -187,7 +190,7 @@ function useAdmin(adminKey, onUpdate) {
   return { busy, error, run };
 }
 
-function AddInfluencer({ adminKey, onUpdate }) {
+function AddInfluencer({ adminKey, onUpdate, onClose }) {
   const [name, setName] = useState("");
   const [code, setCode] = useState("");
   const [percent, setPercent] = useState("");
@@ -195,50 +198,68 @@ function AddInfluencer({ adminKey, onUpdate }) {
 
   async function submit(e) {
     e.preventDefault();
-    if (await run({ action: "add", name, code, percent })) {
-      setName(""); setCode(""); setPercent("");
-    }
+    if (await run({ action: "add", name, code, percent })) onClose();
   }
 
   return (
-    <form onSubmit={submit} className="mt-6 rounded-2xl border border-line p-4">
-      <h2 className="text-lg font-bold">Add influencer</h2>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Name (e.g. Rahul)" maxLength={60} className={`min-w-0 flex-1 ${field}`} />
-        <input
-          value={code}
-          onChange={(e) => setCode(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
-          placeholder="Code (e.g. rahul)"
-          maxLength={30}
-          className={`w-40 uppercase ${field}`}
-        />
-        <input
-          value={percent}
-          onChange={(e) => setPercent(e.target.value.replace(/[^\d.]/g, ""))}
-          placeholder="% per sale"
-          inputMode="decimal"
-          className={`w-28 ${field}`}
-        />
-        <button disabled={busy || !name.trim() || code.length < 2 || percent === ""} className={darkBtn}>Add</button>
+    <form onSubmit={submit} className="mt-4 rounded-2xl border border-line bg-soft p-4">
+      <div className="grid gap-3 sm:grid-cols-[1fr_1fr_8rem_auto] sm:items-end">
+        <label className="text-xs font-semibold text-muted">
+          Name
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Rahul" maxLength={60} autoFocus className={`mt-1 block w-full bg-white ${field}`} />
+        </label>
+        <label className="text-xs font-semibold text-muted">
+          Code
+          <input
+            value={code}
+            onChange={(e) => setCode(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, ""))}
+            placeholder="rahul"
+            maxLength={30}
+            className={`mt-1 block w-full bg-white uppercase ${field}`}
+          />
+        </label>
+        <label className="text-xs font-semibold text-muted">
+          % per sale
+          <input
+            value={percent}
+            onChange={(e) => setPercent(e.target.value.replace(/[^\d.]/g, ""))}
+            placeholder="10"
+            inputMode="decimal"
+            className={`mt-1 block w-full bg-white ${field}`}
+          />
+        </label>
+        <div className="flex gap-2">
+          <button disabled={busy || !name.trim() || code.length < 2 || percent === ""} className={darkBtn}>Add</button>
+          <button type="button" onClick={onClose} className="rounded-xl px-3 py-2 text-sm font-semibold text-muted hover:text-ink">Cancel</button>
+        </div>
       </div>
       <p className="mt-2 text-xs text-muted">
-        Their link becomes {window.location.origin}/?ref={code || "code"}. It works straight away, with no redeploy.
+        Their link: {window.location.origin}/?ref={code || "code"} · works straight away
       </p>
       {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
     </form>
   );
 }
 
-function InfluencerCard({ s, adminKey, onUpdate }) {
-  const [editing, setEditing] = useState(false);
+function StatusPill({ active }) {
+  return active ? (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full bg-soft px-2.5 py-0.5 text-xs font-semibold text-ink">
+      <span className="h-1.5 w-1.5 rounded-full bg-ink" /> Active
+    </span>
+  ) : (
+    <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-line px-2.5 py-0.5 text-xs font-semibold text-muted">
+      <span className="h-1.5 w-1.5 rounded-full bg-muted" /> Paused
+    </span>
+  );
+}
+
+// Opens under a row: everything you can do for one influencer.
+function ManagePanel({ s, adminKey, onUpdate }) {
   const [name, setName] = useState(s.name);
   const [percent, setPercent] = useState(String(s.percent));
   const { busy, error, run } = useAdmin(adminKey, onUpdate);
+  const changed = name.trim() !== s.name || Number(percent) !== s.percent;
 
-  async function save(e) {
-    e.preventDefault();
-    if (await run({ action: "update", code: s.code, name, percent })) setEditing(false);
-  }
   function togglePause() {
     const msg = s.active
       ? `Pause ${s.name}? Their link and code stop working for new buyers. Past sales and payouts stay.`
@@ -251,72 +272,179 @@ function InfluencerCard({ s, adminKey, onUpdate }) {
     }
   }
 
+  const heading = "text-xs font-semibold uppercase tracking-wide text-muted";
   return (
-    <section className={`rounded-2xl border border-line p-4 ${s.active ? "" : "bg-soft"}`}>
-      {editing ? (
-        <form onSubmit={save} className="flex flex-wrap gap-2">
-          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} aria-label="Name" className={`min-w-0 flex-1 ${field}`} />
-          <input
-            value={percent}
-            onChange={(e) => setPercent(e.target.value.replace(/[^\d.]/g, ""))}
-            inputMode="decimal"
-            aria-label="Percent per sale"
-            className={`w-24 ${field}`}
-          />
-          <button disabled={busy} className={darkBtn}>Save</button>
-          <button type="button" onClick={() => { setEditing(false); setName(s.name); setPercent(String(s.percent)); }} className={lightBtn}>Cancel</button>
-          <p className="w-full text-xs text-muted">A new % applies to new sales only.</p>
-        </form>
-      ) : (
-        <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h2 className="text-lg font-bold">
-            {s.name} <span className="text-sm font-semibold uppercase text-muted">{s.code} · {s.percent}%</span>
-            {!s.active && <span className="ml-2 rounded-md bg-line px-2 py-0.5 text-xs font-semibold text-muted">Paused</span>}
-          </h2>
-          <p className="text-sm">
-            Owed <span className="font-bold tabular-nums">{inr(s.owed)}</span>
-          </p>
+    <div className="grid gap-6 p-4 sm:p-5 lg:grid-cols-3">
+      <div>
+        <p className={heading}>Links</p>
+        <div className="mt-2 flex flex-wrap gap-2">
+          <CopyButton text={refLink(s.code)} label="Copy buyer link" />
+          <CopyButton text={`${window.location.origin}/stats?code=${s.code}&key=${encodeURIComponent(s.key)}`} label="Copy stats link" />
         </div>
-      )}
-      <p className="mt-1 text-sm tabular-nums text-muted">
-        {num(s.visits)} visits · {num(s.sales)} sales ({s.conversion}%) · {num(s.salesThisMonth)} this month ·{" "}
-        {s.refunded} refunded · earned {inr(s.earnedTotal)} · paid {inr(s.paid)}
-      </p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <CopyButton text={refLink(s.code)} label="Copy their link" />
-        <CopyButton text={`${window.location.origin}/stats?code=${s.code}&key=${encodeURIComponent(s.key)}`} label="Copy their stats link" />
-        {!editing && <button onClick={() => setEditing(true)} className={lightBtn}>Edit</button>}
-        <button onClick={togglePause} disabled={busy} className={lightBtn}>{s.active ? "Pause" : "Resume"}</button>
-        <button onClick={resetKey} disabled={busy} className={lightBtn}>New stats link</button>
+        <p className="mt-2 break-all font-mono text-xs text-muted">{refLink(s.code)}</p>
+        <button onClick={resetKey} disabled={busy} className="mt-2 text-xs text-muted underline-offset-4 hover:text-ink hover:underline">
+          Stats link leaked? Make a new one
+        </button>
       </div>
-      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
-      <PayoutForm inf={s} adminKey={adminKey} onDone={onUpdate} />
-    </section>
+
+      <div>
+        <p className={heading}>Details</p>
+        <form
+          onSubmit={(e) => { e.preventDefault(); run({ action: "update", code: s.code, name, percent }); }}
+          className="mt-2 flex flex-wrap gap-2"
+        >
+          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={60} aria-label="Name" className={`min-w-0 flex-1 bg-white ${field}`} />
+          <div className="relative">
+            <input
+              value={percent}
+              onChange={(e) => setPercent(e.target.value.replace(/[^\d.]/g, ""))}
+              inputMode="decimal"
+              aria-label="Percent per sale"
+              className={`w-20 bg-white pr-7 ${field}`}
+            />
+            <span className="pointer-events-none absolute right-3 top-2 text-sm text-muted">%</span>
+          </div>
+          <button disabled={busy || !changed} className={darkBtn}>Save</button>
+        </form>
+        <p className="mt-1 text-xs text-muted">A new % applies to new sales only.</p>
+        <div className="mt-3 flex items-center gap-3">
+          <StatusPill active={s.active} />
+          <button onClick={togglePause} disabled={busy} className={lightBtn}>{s.active ? "Pause" : "Resume"}</button>
+        </div>
+        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      </div>
+
+      <div>
+        <p className={heading}>Pay {s.name}</p>
+        <p className="mt-2 text-sm">
+          Due now <span className="font-bold tabular-nums">{inr(s.owed)}</span>
+          {s.earnedTotal - s.readyToPay > 0 && (
+            <span className="text-muted"> · {inr(s.earnedTotal - s.readyToPay)} on hold ({s.holdDays} days)</span>
+          )}
+        </p>
+        <PayoutForm inf={s} adminKey={adminKey} onDone={onUpdate} />
+        {s.payouts.length > 0 && (
+          <ul className="mt-3 space-y-1 text-xs text-muted">
+            {s.payouts.slice(0, 5).map((p, i) => (
+              <li key={i} className="flex justify-between gap-3">
+                <span>{date(p.at)}{p.note && ` · ${p.note}`}</span>
+                <span className="font-semibold tabular-nums text-ink">{inr(p.amount)}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </div>
   );
 }
 
+const pct = (sales, visits) => (visits ? Math.round((sales / visits) * 1000) / 10 : 0);
+
 function AdminView({ data, adminKey, onUpdate }) {
   const list = data.influencers;
+  const [open, setOpen] = useState(null);
+  const [adding, setAdding] = useState(false);
   const sum = (f) => list.reduce((a, x) => a + x[f], 0);
+  const totalVisits = sum("visits");
+  const totalSales = sum("sales");
+
+  const th = "whitespace-nowrap px-3 py-3 text-xs font-semibold text-muted";
+  const td = "whitespace-nowrap px-3 py-3 tabular-nums";
+  const right = "text-right";
+
   return (
     <>
-      <h1 className="text-2xl font-bold sm:text-3xl">Influencers</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1 className="text-2xl font-bold sm:text-3xl">Influencers</h1>
+        {!adding && <button onClick={() => setAdding(true)} className={darkBtn}>+ Add influencer</button>}
+      </div>
+
+      {adding && <AddInfluencer adminKey={adminKey} onUpdate={onUpdate} onClose={() => setAdding(false)} />}
+
       <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <Tile label="Visits" value={num(sum("visits"))} />
-        <Tile label="Sales" value={num(sum("sales"))} />
-        <Tile label="Commission earned" value={inr(sum("earnedTotal"))} />
-        <Tile label="You owe now" value={inr(sum("owed"))} />
+        <Tile label="Visits" value={num(totalVisits)} />
+        <Tile label="Sales" value={num(totalSales)} hint={`${pct(totalSales, totalVisits)}% of visits`} />
+        <Tile label="Commission earned" value={inr(sum("earnedTotal"))} hint={`paid ${inr(sum("paid"))}`} />
+        <Tile label="You owe now" value={inr(sum("owed"))} hint={`sales older than ${list[0]?.holdDays ?? 7} days`} />
       </div>
 
-      <AddInfluencer adminKey={adminKey} onUpdate={onUpdate} />
-
-      {list.length === 0 && <p className="mt-6 text-sm text-muted">No influencers yet. Add your first one above.</p>}
-
-      <div className="mt-4 space-y-4">
-        {list.map((s) => (
-          <InfluencerCard key={s.code} s={s} adminKey={adminKey} onUpdate={onUpdate} />
-        ))}
-      </div>
+      {list.length === 0 ? (
+        <div className="mt-6 rounded-2xl border border-dashed border-line p-8 text-center text-sm text-muted">
+          No influencers yet. Click <span className="font-semibold text-ink">+ Add influencer</span> to add your first one.
+        </div>
+      ) : (
+        <>
+          <div className="mt-6 overflow-x-auto rounded-2xl border border-line">
+            <table className="w-full min-w-[820px] text-sm">
+              <thead className="border-b border-line bg-soft text-left">
+                <tr>
+                  <th className={th}>Influencer</th>
+                  <th className={th}>Code</th>
+                  <th className={`${th} ${right}`}>Share</th>
+                  <th className={`${th} ${right}`}>Visits</th>
+                  <th className={`${th} ${right}`}>Sales</th>
+                  <th className={`${th} ${right}`}>Conversion</th>
+                  <th className={`${th} ${right}`}>Earned</th>
+                  <th className={`${th} ${right}`}>Paid</th>
+                  <th className={`${th} ${right}`}>Owed now</th>
+                  <th className={th}>Status</th>
+                  <th className={th}><span className="sr-only">Manage</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                {list.map((s, i) => {
+                  const isOpen = open === s.code;
+                  return (
+                    <Fragment key={s.code}>
+                      <tr
+                        onClick={() => setOpen(isOpen ? null : s.code)}
+                        className={`cursor-pointer hover:bg-soft ${i > 0 ? "border-t border-line" : ""} ${isOpen ? "bg-soft" : ""} ${s.active ? "" : "text-muted"}`}
+                      >
+                        <td className="px-3 py-3 font-semibold">{s.name}</td>
+                        <td className="whitespace-nowrap px-3 py-3 font-mono text-xs uppercase">{s.code}</td>
+                        <td className={`${td} ${right}`}>{s.percent}%</td>
+                        <td className={`${td} ${right}`}>{num(s.visits)}</td>
+                        <td className={`${td} ${right}`}>
+                          {num(s.sales)}
+                          {s.refunded > 0 && <span className="block text-xs text-red-600">{s.refunded} refunded</span>}
+                        </td>
+                        <td className={`${td} ${right}`}>{s.conversion}%</td>
+                        <td className={`${td} ${right}`}>{inr(s.earnedTotal)}</td>
+                        <td className={`${td} ${right}`}>{inr(s.paid)}</td>
+                        <td className={`${td} ${right} ${s.owed > 0 ? "font-bold text-ink" : "text-muted"}`}>{inr(s.owed)}</td>
+                        <td className="px-3 py-3"><StatusPill active={s.active} /></td>
+                        <td className="whitespace-nowrap px-3 py-3 text-right text-xs font-semibold text-ink">
+                          {isOpen ? "Close ▴" : "Manage ▾"}
+                        </td>
+                      </tr>
+                      {isOpen && (
+                        <tr className="border-t border-line">
+                          <td colSpan={11} className="bg-white p-0">
+                            <ManagePanel key={`${s.code}-${s.name}-${s.percent}`} s={s} adminKey={adminKey} onUpdate={onUpdate} />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  );
+                })}
+              </tbody>
+              <tfoot className="border-t-2 border-line bg-soft font-semibold">
+                <tr>
+                  <td className="px-3 py-3" colSpan={3}>Total · {list.length} influencer{list.length === 1 ? "" : "s"}</td>
+                  <td className={`${td} ${right}`}>{num(totalVisits)}</td>
+                  <td className={`${td} ${right}`}>{num(totalSales)}</td>
+                  <td className={`${td} ${right}`}>{pct(totalSales, totalVisits)}%</td>
+                  <td className={`${td} ${right}`}>{inr(sum("earnedTotal"))}</td>
+                  <td className={`${td} ${right}`}>{inr(sum("paid"))}</td>
+                  <td className={`${td} ${right}`}>{inr(sum("owed"))}</td>
+                  <td colSpan={2} />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+          <p className="mt-2 text-xs text-muted">Click a row to copy links, edit, pause or record a payout.</p>
+        </>
+      )}
     </>
   );
 }
@@ -335,7 +463,7 @@ export default function Stats() {
 
   return (
     <div className="min-h-dvh bg-white text-ink antialiased">
-      <main className="mx-auto w-full max-w-3xl px-4 py-6 sm:px-6 sm:py-10">
+      <main className={`mx-auto w-full px-4 py-6 sm:px-6 sm:py-10 ${adminKey !== null ? "max-w-6xl" : "max-w-3xl"}`}>
         {error ? (
           <p className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</p>
         ) : !data ? (
