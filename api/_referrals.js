@@ -14,11 +14,23 @@ export function safeEqual(a, b) {
 }
 
 // ---------- Redis (Upstash REST) ----------
-// The Vercel integration sets KV_REST_API_*; a direct Upstash setup uses UPSTASH_REDIS_REST_*.
+// The Vercel integration sets KV_REST_API_URL / KV_REST_API_TOKEN, often with a prefix the dashboard
+// picks (e.g. STORAGE_KV_REST_API_URL). A direct Upstash setup uses UPSTASH_REDIS_REST_*.
 function redisConf() {
-  const url = process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL;
-  const token = process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN;
-  if (!url || !token) throw new Error("Upstash Redis is not connected (KV_REST_API_URL / KV_REST_API_TOKEN missing)");
+  const env = process.env;
+  let url = env.KV_REST_API_URL || env.UPSTASH_REDIS_REST_URL;
+  let token = env.KV_REST_API_TOKEN || env.UPSTASH_REDIS_REST_TOKEN;
+  if (!url || !token) {
+    for (const name of Object.keys(env)) {
+      const m = name.match(/^(.*)KV_REST_API_URL$/);
+      if (m && env[name] && env[`${m[1]}KV_REST_API_TOKEN`]) {
+        url = env[name];
+        token = env[`${m[1]}KV_REST_API_TOKEN`];
+        break;
+      }
+    }
+  }
+  if (!url || !token) throw new Error("Upstash Redis is not connected (no …KV_REST_API_URL / …KV_REST_API_TOKEN found)");
   return { url: url.replace(/\/+$/, ""), token };
 }
 
