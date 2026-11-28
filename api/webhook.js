@@ -1,10 +1,12 @@
 import crypto from "crypto";
-import { razorpay } from "./_lib.js";
+import { razorpay, razorpayOld } from "./_lib.js";
 import { recordSale, markRefunded, safeEqual } from "./_referrals.js";
 
 // Razorpay calls this directly (Dashboard → Webhooks), so a sale is credited to the influencer
 // even if the buyer closed the page before /api/verify-payment ran.
 // Events: payment.captured, refund.processed
+// The old Razorpay account's webhook (RAZORPAY_OLD_WEBHOOK_SECRET) can keep pointing here too:
+// its refunds still update influencer stats, looked up with the old account's keys.
 
 // Vercel buffers the body and replays it to "data"/"end" listeners, so listen for those
 // (not `for await`). Don't read req.body here: it is the parsed JSON, not the exact bytes.
@@ -26,11 +28,14 @@ export default async function handler(req, res) {
   }
 
   // The signature is over the exact bytes Razorpay sent, so read the raw body.
+  // It tells us which account sent the event: the main one, or the old one.
   const body = await rawBody(req);
-  const expected = crypto.createHmac("sha256", secret).update(body).digest("hex");
-  if (!safeEqual(expected, req.headers["x-razorpay-signature"] || "")) {
-    return res.status(400).json({ error: "Bad signature" });
-  }
+  const signedBy = (s) =>
+    s && safeEqual(crypto.createHmac("sha256", s).update(body).digest("hex"), req.headers["x-razorpay-signature"] || "");
+  let rzp;
+  if (signedBy(secret)) rzp = razorpay();
+  else if (signedBy(process.env.RAZORPAY_OLD_WEBHOOK_SECRET) && razorpayOld()) rzp = razorpayOld();
+  else return res.status(400).json({ error: "Bad signature" });
 
   let event;
   try { event = JSON.parse(body); } catch { return res.status(400).json({ error: "Bad body" }); }
@@ -39,16 +44,16 @@ export default async function handler(req, res) {
     if (event.event === "payment.captured") {
       const payment = event.payload?.payment?.entity;
       if (payment?.order_id) {
-        const order = await razorpay().orders.fetch(payment.order_id);
+        const order = await rzp.orders.fetch(payment.order_id);
         // The order may not show "paid" yet at this instant; the captured payment is the proof.
         await recordSale({ ...order, amount_paid: payment.amount }, payment.id);
       }
     } else if (event.event === "refund.processed") {
       const paymentId = event.payload?.refund?.entity?.payment_id;
       if (paymentId) {
-        const payment = await razorpay().payments.fetch(paymentId);
+        const payment = await rzp.payments.fetch(paymentId);
         if (payment?.order_id) {
-          const order = await razorpay().orders.fetch(payment.order_id);
+          const order = await rzp.orders.fetch(payment.order_id);
           if (order.notes?.ref) {
             // The sale may not be saved yet (its own webhook can arrive later or be retrying).
             // Save it first (no-op if already there), so the refund is never lost.

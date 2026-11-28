@@ -18,6 +18,26 @@ export function razorpay() {
   return client;
 }
 
+// The previous Razorpay account (before moving to the company account), if set.
+// New orders always use the main account above. The old one is only read, so buyers who paid
+// there can still restore access, and its refunds still reach the webhook.
+let oldClient;
+export function razorpayOld() {
+  if (!process.env.RAZORPAY_OLD_KEY_ID || !process.env.RAZORPAY_OLD_KEY_SECRET) return null;
+  if (!oldClient) {
+    oldClient = new Razorpay({
+      key_id: process.env.RAZORPAY_OLD_KEY_ID,
+      key_secret: process.env.RAZORPAY_OLD_KEY_SECRET,
+    });
+  }
+  return oldClient;
+}
+
+// Main account first, then the old one.
+export function razorpayAccounts() {
+  return [razorpay(), razorpayOld()].filter(Boolean);
+}
+
 export const PRODUCT_ID = process.env.PRODUCT_ID || "editing-pack-v1";
 // PRICE_INR = price with a creator code (the lowest price anyone pays).
 // FULL_PRICE_INR = price without a code. Not set → everyone pays PRICE_INR.
