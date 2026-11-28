@@ -21,7 +21,7 @@ async function post(url, body) {
     body: JSON.stringify(body),
   });
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw Object.assign(new Error(data.error || "Something went wrong"), { data });
+  if (!r.ok) throw Object.assign(new Error(data.error || "Something went wrong"), { data, status: r.status });
   return data;
 }
 
@@ -102,7 +102,17 @@ export default function App() {
     if (!ref) return;
     url.searchParams.delete("ref");
     window.history.replaceState(null, "", url.pathname + url.search + url.hash);
-    applyRef(ref).then(setRefCode).catch(() => {});
+    applyRef(ref)
+      .then(setRefCode)
+      .catch((e) => {
+        // "Not found" → ignore the code. Busy or offline → keep it anyway: "Buy now" checks it again
+        // on the server, so a short outage never costs the buyer their discount or the influencer the sale.
+        const code = ref.trim().toLowerCase();
+        if (e.status !== 404 && /^[a-z0-9_-]{2,30}$/.test(code)) {
+          saveRef(code);
+          setRefCode(code);
+        }
+      });
   }, []);
 
   async function handleCode(e) {

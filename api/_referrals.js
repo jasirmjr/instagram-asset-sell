@@ -35,12 +35,16 @@ function redisConf() {
 }
 
 // Runs several commands in one round trip. Returns each command's result.
-export async function redis(commands) {
+// atomic: all commands succeed or none do (Redis MULTI/EXEC).
+// Gives up after 5 s so a slow database never leaves a buyer waiting on "Buy now".
+const REDIS_TIMEOUT_MS = 5000;
+export async function redis(commands, { atomic = false } = {}) {
   const { url, token } = redisConf();
-  const r = await fetch(`${url}/pipeline`, {
+  const r = await fetch(`${url}/${atomic ? "multi-exec" : "pipeline"}`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
     body: JSON.stringify(commands),
+    signal: AbortSignal.timeout(REDIS_TIMEOUT_MS),
   });
   const data = await r.json().catch(() => null);
   if (!r.ok || !Array.isArray(data)) throw new Error(`Redis request failed (${r.status})`);
@@ -171,10 +175,13 @@ export async function markRefunded(code, paymentId) {
 
 export async function recordPayout(code, amountPaise, note) {
   const entry = JSON.stringify({ at: Date.now(), amount: amountPaise, note: String(note || "").slice(0, 100) });
-  await redis([
-    ["INCRBY", K.paid(code), String(amountPaise)],
-    ["LPUSH", K.payouts(code), entry],
-  ]);
+  await redis(
+    [
+      ["INCRBY", K.paid(code), String(amountPaise)],
+      ["LPUSH", K.payouts(code), entry],
+    ],
+    { atomic: true }
+  );
 }
 
 // ---------- Reads ----------

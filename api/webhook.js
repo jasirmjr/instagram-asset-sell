@@ -49,7 +49,12 @@ export default async function handler(req, res) {
         const payment = await razorpay().payments.fetch(paymentId);
         if (payment?.order_id) {
           const order = await razorpay().orders.fetch(payment.order_id);
-          if (order.notes?.ref) await markRefunded(order.notes.ref, paymentId);
+          if (order.notes?.ref) {
+            // The sale may not be saved yet (its own webhook can arrive later or be retrying).
+            // Save it first (no-op if already there), so the refund is never lost.
+            await recordSale({ ...order, amount_paid: payment.amount }, paymentId);
+            await markRefunded(order.notes.ref, paymentId);
+          }
         }
       }
     }

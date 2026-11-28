@@ -77,14 +77,31 @@ export function allowRequest(req, route, limit, windowMs) {
     "unknown";
   const key = `${route}:${ip}`;
   const now = Date.now();
-  const recent = (hits.get(key) || []).filter((t) => now - t < windowMs);
+  const recent = (hits.get(key)?.times || []).filter((t) => now - t < windowMs);
   const allowed = recent.length < limit;
   if (allowed) recent.push(now);
-  hits.set(key, recent);
-  if (hits.size > 10000) {
-    for (const [k, v] of hits) if (!v.some((t) => now - t < windowMs)) hits.delete(k);
-  }
+  hits.set(key, { times: recent, windowMs });
+  cleanUp(now);
   return allowed;
+}
+
+// Forget visitors whose window has passed. Runs at most every 30 s (not on every request,
+// which got slow with tens of thousands of visitors), and the hard cap keeps memory bounded
+// even in a huge spike (the oldest entries go first).
+const MAX_TRACKED = 20000;
+let lastCleanUp = 0;
+function cleanUp(now) {
+  if (hits.size > 10000 && now - lastCleanUp > 30000) {
+    lastCleanUp = now;
+    for (const [k, v] of hits) if (!v.times.some((t) => now - t < v.windowMs)) hits.delete(k);
+  }
+  if (hits.size > MAX_TRACKED) {
+    let extra = hits.size - MAX_TRACKED * 0.8;
+    for (const k of hits.keys()) {
+      if (extra-- <= 0) break;
+      hits.delete(k);
+    }
+  }
 }
 
 export function tooMany(res) {
