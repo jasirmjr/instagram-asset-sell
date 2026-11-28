@@ -21,7 +21,7 @@ async function post(url, body) {
     body: JSON.stringify(body),
   });
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data.error || "Something went wrong");
+  if (!r.ok) throw Object.assign(new Error(data.error || "Something went wrong"), { data });
   return data;
 }
 
@@ -48,6 +48,9 @@ function readRef() {
     if (r?.code && Date.now() - r.at < REF_DAYS * 24 * 60 * 60 * 1000) return r.code;
   } catch {}
   return null;
+}
+function clearRef() {
+  try { localStorage.removeItem(REF_KEY); } catch {}
 }
 function saveRef(code) {
   try { localStorage.setItem(REF_KEY, JSON.stringify({ code, at: Date.now() })); } catch {}
@@ -77,6 +80,17 @@ export default function App() {
   const [showRestore, setShowRestore] = useState(false);
   const [restoreId, setRestoreId] = useState("");
   const [refCode, setRefCode] = useState(readRef);
+  const [prices, setPrices] = useState({ full: product.fullPriceInr ?? product.priceInr, code: product.priceInr });
+
+  // Real prices come from the server, so the page always shows what Razorpay will charge.
+  useEffect(() => {
+    fetch("/api/price")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => d && setPrices({ full: d.fullInr, code: d.codeInr }))
+      .catch(() => {});
+  }, []);
+  const hasDiscount = prices.full > prices.code;
+  const price = refCode ? prices.code : prices.full;
   const [showCode, setShowCode] = useState(false);
   const [codeInput, setCodeInput] = useState("");
   const [codeError, setCodeError] = useState("");
@@ -162,7 +176,14 @@ export default function App() {
       });
       rzp.open();
     } catch (e) {
-      setError(e.message);
+      if (e.data?.codeInvalid) {
+        // The saved code was paused or removed. Show the real price before taking any money.
+        clearRef();
+        setRefCode(null);
+        setError(`Creator code ${String(refCode || "").toUpperCase()} is no longer active, so the price is ₹${prices.full}. Tap "Buy now" to continue, or enter another code.`);
+      } else {
+        setError(e.message);
+      }
       setBusy(false);
     }
   }
@@ -241,7 +262,12 @@ export default function App() {
               )}
 
               <div className="pt-6">
-                <span className="text-3xl font-bold">₹{product.priceInr}</span>
+                <div className="flex items-baseline justify-center gap-3">
+                  {refCode && hasDiscount && (
+                    <span className="text-xl font-semibold text-muted line-through">₹{prices.full}</span>
+                  )}
+                  <span className="text-3xl font-bold">₹{price}</span>
+                </div>
 
                 <button
                   onClick={handleBuy}
@@ -254,14 +280,15 @@ export default function App() {
                 <div className="mt-3 text-sm text-muted">
                   {refCode && !showCode ? (
                     <p>
-                      Creator code <span className="font-semibold uppercase text-ink">{refCode}</span> applied ·{" "}
+                      Creator code <span className="font-semibold uppercase text-ink">{refCode}</span> applied
+                      {hasDiscount && <> · <span className="font-semibold text-ink">₹{prices.full - prices.code} off</span></>} ·{" "}
                       <button onClick={() => setShowCode(true)} className="underline-offset-4 hover:text-ink hover:underline">
                         change
                       </button>
                     </p>
                   ) : !showCode ? (
                     <button onClick={() => setShowCode(true)} className="underline-offset-4 hover:text-ink hover:underline">
-                      Have a creator code?
+                      Have a creator code?{hasDiscount && ` Get ₹${prices.full - prices.code} off`}
                     </button>
                   ) : (
                     <form onSubmit={handleCode} className="flex gap-2">

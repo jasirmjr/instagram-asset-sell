@@ -19,7 +19,10 @@ export function razorpay() {
 }
 
 export const PRODUCT_ID = process.env.PRODUCT_ID || "editing-pack-v1";
+// PRICE_INR = price with a creator code (the lowest price anyone pays).
+// FULL_PRICE_INR = price without a code. Not set → everyone pays PRICE_INR.
 export const PRICE_PAISE = Math.round(Number(process.env.PRICE_INR || 49) * 100);
+export const FULL_PRICE_PAISE = Math.max(PRICE_PAISE, Math.round(Number(process.env.FULL_PRICE_INR || 0) * 100));
 
 function hmac(data, secret) {
   return crypto.createHmac("sha256", secret).update(data).digest("hex");

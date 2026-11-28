@@ -41,6 +41,7 @@ Duplicate the project (or change `PRODUCT_ID`, `PRICE_INR`, `ASSET_URL`). Changi
 ## Influencer tracking
 Each influencer gets a link (`yoursite.com/?ref=rahul`) and a code (`RAHUL`) to say in their video, since Reels/Shorts have no clickable links. Buyers can type the code under "Buy now". The code is remembered for 30 days; the last link or code used wins.
 
+- **Price**: without a code buyers pay `FULL_PRICE_INR` (₹99); with an active code they pay `PRICE_INR` (₹49), shown as ~~₹99~~ ₹49. If a saved code was paused, the page shows the full price before taking payment.
 - **Visits**: counted once per browser per code (`/api/visit`).
 - **Sales**: saved when payment is verified, and again by the Razorpay webhook as a backup (each payment counts once). Refunds are removed via the webhook. The code is also saved in the Razorpay order notes (`ref`), so you can cross-check in the Razorpay export.
 - **Commission**: `percent` of the sale price, frozen at sale time. A sale can be paid out after 7 days.
