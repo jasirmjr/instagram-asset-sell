@@ -281,10 +281,7 @@ export default function App() {
                   {refCode && !showCode ? (
                     <p>
                       Creator code <span className="font-semibold uppercase text-ink">{refCode}</span> applied
-                      {hasDiscount && <> · <span className="font-semibold text-ink">₹{prices.full - prices.code} off</span></>} ·{" "}
-                      <button onClick={() => setShowCode(true)} className="underline-offset-4 hover:text-ink hover:underline">
-                        change
-                      </button>
+                      {hasDiscount && <> · <span className="font-semibold text-ink">₹{prices.full - prices.code} off</span></>}
                     </p>
                   ) : !showCode ? (
                     <button onClick={() => setShowCode(true)} className="underline-offset-4 hover:text-ink hover:underline">
