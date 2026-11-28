@@ -134,6 +134,22 @@ export async function updateInfluencer(rawCode, patch) {
   return { ok: true };
 }
 
+// Removes the influencer and everything recorded for them (visits, sales, payouts), all at once.
+// Their code stops working straight away and can be given to someone new later.
+export async function deleteInfluencer(rawCode) {
+  const inf = await findInfluencer(rawCode, { includePaused: true });
+  if (!inf) return { error: "Unknown creator code" };
+  const c = inf.code;
+  await redis(
+    [
+      ["HDEL", K.influencers, c],
+      ["DEL", K.visits(c), K.sales(c), K.paid(c), K.payouts(c)],
+    ],
+    { atomic: true }
+  );
+  return { ok: true };
+}
+
 // ---------- Writes ----------
 
 export async function countVisit(code) {

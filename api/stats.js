@@ -1,6 +1,6 @@
 import { allowRequest, tooMany } from "./_lib.js";
 import {
-  listInfluencers, findInfluencer, addInfluencer, updateInfluencer,
+  listInfluencers, findInfluencer, addInfluencer, updateInfluencer, deleteInfluencer,
   influencerStats, recordPayout, safeEqual,
 } from "./_referrals.js";
 
@@ -9,6 +9,7 @@ import {
 //   { action: "add", name, code, percent }
 //   { action: "update", code, name?, percent?, active?, newKey? }
 //   { action: "payout", code, amountInr, note }
+//   { action: "delete", code, confirm }   (confirm must equal code)
 export default async function handler(req, res) {
   if (req.method !== "POST") return res.status(405).json({ error: "Method not allowed" });
   // Limits key guessing.
@@ -29,6 +30,12 @@ export default async function handler(req, res) {
         result = await updateInfluencer(body.code, {
           name: body.name, percent: body.percent, active: body.active, newKey: body.newKey,
         });
+      } else if (body.action === "delete") {
+        // The page asks twice and makes you type the code; checked here too, so a stray request can't delete.
+        const code = String(body.code || "").trim().toLowerCase();
+        result = code && String(body.confirm || "").trim().toLowerCase() === code
+          ? await deleteInfluencer(code)
+          : { error: "Type the code to confirm" };
       } else if (body.action === "payout") {
         const inf = await findInfluencer(body.code, { includePaused: true });
         const paise = Math.round(Number(body.amountInr) * 100);

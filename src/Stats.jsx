@@ -253,6 +253,64 @@ function StatusPill({ active }) {
   );
 }
 
+// Two steps: 1) click Delete and read what will be lost, 2) type the code and confirm.
+function DeleteInfluencer({ s, adminKey, onUpdate }) {
+  const [step, setStep] = useState(0);
+  const [typed, setTyped] = useState("");
+  const { busy, error, run } = useAdmin(adminKey, onUpdate);
+  const matches = typed.trim().toLowerCase() === s.code;
+
+  if (step === 0) {
+    return (
+      <button onClick={() => setStep(1)} className="text-xs font-semibold text-red-600 underline-offset-4 hover:underline">
+        Delete influencer
+      </button>
+    );
+  }
+
+  const cancel = () => { setStep(0); setTyped(""); };
+  return (
+    <div className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800">
+      <p className="font-semibold">Delete {s.name} ({s.code.toUpperCase()})?</p>
+      <ul className="mt-1 list-disc pl-5 text-xs">
+        <li>Their link and code stop working immediately.</li>
+        <li>All their history is erased: {num(s.visits)} visits, {num(s.sales + s.refunded)} sales, {s.payouts.length} payout records.</li>
+        {s.owed > 0 && <li className="font-semibold">You still owe them {inr(s.owed)}. Pay them first, or note it down.</li>}
+        <li>This can't be undone. To only stop the code, use Pause instead.</li>
+      </ul>
+      {step === 1 ? (
+        <div className="mt-3 flex flex-wrap gap-2">
+          <button onClick={() => setStep(2)} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white">Yes, I want to delete</button>
+          <button onClick={cancel} className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink">Cancel</button>
+        </div>
+      ) : (
+        <form
+          onSubmit={(e) => { e.preventDefault(); if (matches) run({ action: "delete", code: s.code, confirm: typed }); }}
+          className="mt-3"
+        >
+          <label className="text-xs font-semibold">
+            To confirm, type <span className="font-mono uppercase">{s.code}</span>
+            <input
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              autoFocus
+              autoComplete="off"
+              className="mt-1 block w-full rounded-lg border border-red-200 bg-white px-3 py-1.5 font-mono text-sm uppercase text-ink outline-none focus:border-red-600"
+            />
+          </label>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <button disabled={!matches || busy} className="rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40">
+              {busy ? "Deleting…" : "Delete forever"}
+            </button>
+            <button type="button" onClick={cancel} className="rounded-lg border border-red-200 bg-white px-3 py-1.5 text-xs font-semibold text-ink">Cancel</button>
+          </div>
+          {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+        </form>
+      )}
+    </div>
+  );
+}
+
 // Opens under a row: everything you can do for one influencer.
 function ManagePanel({ s, adminKey, onUpdate }) {
   const [name, setName] = useState(s.name);
@@ -312,6 +370,9 @@ function ManagePanel({ s, adminKey, onUpdate }) {
           <button onClick={togglePause} disabled={busy} className={lightBtn}>{s.active ? "Pause" : "Resume"}</button>
         </div>
         {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+        <div className="mt-4 border-t border-line pt-3">
+          <DeleteInfluencer s={s} adminKey={adminKey} onUpdate={onUpdate} />
+        </div>
       </div>
 
       <div>
@@ -442,7 +503,7 @@ function AdminView({ data, adminKey, onUpdate }) {
               </tfoot>
             </table>
           </div>
-          <p className="mt-2 text-xs text-muted">Click a row to copy links, edit, pause or record a payout.</p>
+          <p className="mt-2 text-xs text-muted">Click a row to copy links, edit, pause, delete or record a payout.</p>
         </>
       )}
     </>
