@@ -37,3 +37,18 @@ No database needed. The download link is only stored on the server.
 
 ## Selling a new pack later
 Duplicate the project (or change `PRODUCT_ID`, `PRICE_INR`, `ASSET_URL`). Changing `PRODUCT_ID` means old buyers won't unlock the new pack.
+
+## Influencer tracking
+Each influencer gets a link (`yoursite.com/?ref=rahul`) and a code (`RAHUL`) to say in their video, since Reels/Shorts have no clickable links. Buyers can type the code under "Buy now". The code is remembered for 30 days; the last link or code used wins.
+
+- **Visits**: counted once per browser per code (`/api/visit`).
+- **Sales**: saved when payment is verified, and again by the Razorpay webhook as a backup (each payment counts once). Refunds are removed via the webhook. The code is also saved in the Razorpay order notes (`ref`), so you can cross-check in the Razorpay export.
+- **Commission**: `percent` of the sale price, frozen at sale time. A sale can be paid out after 7 days.
+- **Admin page** `yoursite.com/stats?admin=ADMIN_KEY`: add influencers (name, code, %), edit their %, pause/resume them, see everyone's numbers, copy their links and record payouts after you pay them by UPI/bank. Changes work instantly (saved in Upstash, no redeploy). A new % applies to new sales only; pausing stops new visits/sales but keeps their history.
+- **Influencer stats** `yoursite.com/stats?code=rahul&key=THEIR_KEY`: copy it from the admin page and send it to them. "New stats link" makes the old one stop working.
+
+Setup:
+1. Vercel → project → **Storage** → add **Upstash (Redis)** and connect it to the project.
+2. Add `ADMIN_KEY` and `RAZORPAY_WEBHOOK_SECRET` in Vercel environment variables (see `.env.example`).
+3. Razorpay Dashboard → **Webhooks** → add `https://yoursite.com/api/webhook` with events `payment.captured` and `refund.processed`, same secret.
+4. Redeploy once, then open `yoursite.com/stats?admin=ADMIN_KEY` and add your influencers.

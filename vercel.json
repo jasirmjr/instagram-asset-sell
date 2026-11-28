@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "rewrites": [{ "source": "/stats", "destination": "/index.html" }],
   "headers": [
     {
       "source": "/(.*)",
@@ -9,6 +10,10 @@
         { "key": "X-Content-Type-Options", "value": "nosniff" },
         { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" }
       ]
+    },
+    {
+      "source": "/stats",
+      "headers": [{ "key": "Cache-Control", "value": "no-store" }, { "key": "X-Robots-Tag", "value": "noindex" }]
     },
     {
       "source": "/api/(.*)",

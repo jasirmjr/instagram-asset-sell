@@ -35,6 +35,39 @@ function clearToken() {
   try { localStorage.removeItem(TOKEN_KEY); } catch {}
 }
 
+// ---- Creator (influencer) code ----
+// Kept for 30 days so someone who watches today and buys tomorrow still counts.
+// The last link or code used wins.
+const REF_KEY = "asset_ref";
+const REF_SEEN_KEY = "asset_ref_seen";
+const REF_DAYS = 30;
+
+function readRef() {
+  try {
+    const r = JSON.parse(localStorage.getItem(REF_KEY));
+    if (r?.code && Date.now() - r.at < REF_DAYS * 24 * 60 * 60 * 1000) return r.code;
+  } catch {}
+  return null;
+}
+function saveRef(code) {
+  try { localStorage.setItem(REF_KEY, JSON.stringify({ code, at: Date.now() })); } catch {}
+}
+function seenRefs() {
+  try { return JSON.parse(localStorage.getItem(REF_SEEN_KEY)) || []; } catch { return []; }
+}
+
+// Checks the code with the server and counts one visit per browser per code.
+async function applyRef(raw) {
+  const ref = String(raw || "").trim().toLowerCase();
+  const seen = seenRefs();
+  const d = await post("/api/visit", { ref, first: !seen.includes(ref) });
+  if (!seen.includes(d.code)) {
+    try { localStorage.setItem(REF_SEEN_KEY, JSON.stringify([...seen, d.code].slice(-20))); } catch {}
+  }
+  saveRef(d.code);
+  return d.code;
+}
+
 export default function App() {
   const [status, setStatus] = useState("checking"); // checking | locked | unlocked
   const [token, setToken] = useState(null);
@@ -43,6 +76,32 @@ export default function App() {
   const [error, setError] = useState("");
   const [showRestore, setShowRestore] = useState(false);
   const [restoreId, setRestoreId] = useState("");
+  const [refCode, setRefCode] = useState(readRef);
+  const [showCode, setShowCode] = useState(false);
+  const [codeInput, setCodeInput] = useState("");
+  const [codeError, setCodeError] = useState("");
+
+  // Arrived from an influencer's link (?ref=rahul): check it, remember it, tidy the URL.
+  useEffect(() => {
+    const url = new URL(window.location.href);
+    const ref = url.searchParams.get("ref");
+    if (!ref) return;
+    url.searchParams.delete("ref");
+    window.history.replaceState(null, "", url.pathname + url.search + url.hash);
+    applyRef(ref).then(setRefCode).catch(() => {});
+  }, []);
+
+  async function handleCode(e) {
+    e.preventDefault();
+    setCodeError("");
+    try {
+      setRefCode(await applyRef(codeInput));
+      setShowCode(false);
+      setCodeInput("");
+    } catch (err) {
+      setCodeError(err.message);
+    }
+  }
 
   // On every visit: if this browser already paid, unlock straight away
   useEffect(() => {
@@ -76,7 +135,7 @@ export default function App() {
     try {
       const ok = await loadRazorpay();
       if (!ok) throw new Error("Couldn't load Razorpay. Check your internet and try again.");
-      const order = await post("/api/create-order", {});
+      const order = await post("/api/create-order", { ref: refCode || "" });
       const rzp = new window.Razorpay({
         key: order.keyId,
         amount: order.amount,
@@ -191,6 +250,39 @@ export default function App() {
                 >
                   {busy ? "Please wait…" : "Buy now"}
                 </button>
+
+                <div className="mt-3 text-sm text-muted">
+                  {refCode && !showCode ? (
+                    <p>
+                      Creator code <span className="font-semibold uppercase text-ink">{refCode}</span> applied ·{" "}
+                      <button onClick={() => setShowCode(true)} className="underline-offset-4 hover:text-ink hover:underline">
+                        change
+                      </button>
+                    </p>
+                  ) : !showCode ? (
+                    <button onClick={() => setShowCode(true)} className="underline-offset-4 hover:text-ink hover:underline">
+                      Have a creator code?
+                    </button>
+                  ) : (
+                    <form onSubmit={handleCode} className="flex gap-2">
+                      <input
+                        value={codeInput}
+                        onChange={(e) => setCodeInput(e.target.value)}
+                        placeholder="Creator code"
+                        aria-label="Creator code"
+                        autoCapitalize="characters"
+                        className="min-w-0 flex-1 rounded-xl border border-line bg-soft px-3 py-2 text-base uppercase text-ink outline-none focus:border-ink"
+                      />
+                      <button
+                        disabled={!codeInput.trim()}
+                        className="rounded-xl bg-ink px-4 py-2 text-sm font-semibold text-white disabled:opacity-50"
+                      >
+                        Apply
+                      </button>
+                    </form>
+                  )}
+                  {codeError && <p className="mt-2 text-xs text-red-600">{codeError}</p>}
+                </div>
 
                 <div className="mt-5 border-t border-line pt-4">
                   {!showRestore ? (
