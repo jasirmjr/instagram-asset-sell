@@ -248,7 +248,32 @@ export default function App() {
 
         {status === "locked" && (
           <section className="overflow-hidden rounded-3xl border border-line bg-white shadow-[0_8px_30px_-12px_rgba(0,0,0,0.12)] md:grid md:grid-cols-2">
-            {product.preview ? (
+            {product.previewVideo ? (
+              <video
+                ref={(v) => {
+                  if (!v || v.dataset.ready) return;
+                  v.dataset.ready = "1";
+                  // Muted must be set before play() for phones to allow autoplay.
+                  v.muted = true;
+                  const play = () => { if (!document.hidden && v.paused) v.play()?.catch(() => {}); };
+                  play();
+                  // Keep it running: restart after switching tabs, and on the first tap if the
+                  // phone blocked autoplay (e.g. iPhone battery saver).
+                  document.addEventListener("visibilitychange", play);
+                  document.addEventListener("pointerdown", play, { once: true });
+                }}
+                onPause={(e) => { if (!document.hidden) e.currentTarget.play()?.catch(() => {}); }}
+                src={product.previewVideo}
+                autoPlay
+                muted
+                loop
+                preload="auto"
+                playsInline
+                disablePictureInPicture
+                aria-label={`${product.name} preview`}
+                className="pointer-events-none aspect-video w-full bg-black object-cover md:aspect-auto md:h-full md:object-contain"
+              />
+            ) : product.preview ? (
               <img
                 src={product.preview}
                 alt={product.name}

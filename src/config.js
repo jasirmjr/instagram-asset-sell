@@ -8,7 +8,8 @@ export const product = {
   tagline: "Transitions, LUTs, SFX and overlays I use in my reels.",
   fullPriceInr: 99,
   priceInr: 49,
-  preview: "", // e.g. "/preview.jpg" (put the image in the public/ folder). Empty = gradient placeholder
+  preview: "", // picture, used only when there is no previewVideo. In public/
+  previewVideo: "/preview.mp4", // silent preview that plays on a loop. In public/
   features: [],
   instagram: "",
 };
